@@ -1,7 +1,8 @@
 // Builds the site: mdBook renders every edition into book/html, then Vite adds the reader bundle
 // (/reader.js from web/reader.ts) and public/ (/…). In dev, Vite serves the reader from source
 // and rebuilds the book when its sources change.
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { basename, dirname, join, resolve } from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 import { defineConfig, normalizePath } from 'vite';
@@ -9,6 +10,8 @@ import { buildBook, replaceDirectory } from './web/mdbook.ts';
 
 const out = resolve('book/html');
 const reader = resolve('web/reader.ts');
+const pageFlipPackage = createRequire(import.meta.url).resolve('page-flip/package.json');
+const pageFlipLicense = '/*! StPageFlip\n' + await readFile(join(dirname(pageFlipPackage), 'LICENSE'), 'utf8') + '\n*/';
 const bookSources = ['src', 'theme', 'book.toml', 'web/localize.ts', 'web/public-assets.ts', 'web/mdbook-assets.ts', 'web/mdbook.ts'].map((path) => normalizePath(resolve(path)));
 
 /** Vite plugin that owns the mdBook part of the site. */
@@ -94,13 +97,14 @@ export default defineConfig(({ command }) => ({
   publicDir: resolve('public'),
   appType: 'mpa',
   // The book build rewrites book/html; the plugin reloads once it has finished instead.
+  preview: { headers: { 'Cache-Control': 'no-store' } },
   server: { port: 3478, strictPort: true, watch: { ignored: [out + '/**'] } },
   build: {
     outDir: out,
     emptyOutDir: false,
     rollupOptions: {
       input: reader,
-      output: { entryFileNames: 'reader.js' },
+      output: { entryFileNames: 'reader.js', banner: pageFlipLicense },
     },
   },
   plugins: [mdbook()],
