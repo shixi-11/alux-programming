@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>{{ title }}</title>
+        <title>{{#if is_index}}{{ book_title }}{{else}}{{ title }}{{/if}}</title>
         {{#if is_print }}
         <meta name="robots" content="noindex">
         {{/if}}
@@ -16,7 +16,7 @@
         {{> head}}
 
         <!-- ALUX reader: social card, book font, reading preferences applied before first paint -->
-        <meta property="og:title" content="{{ title }}">
+        <meta property="og:title" content="{{#if is_index}}{{ book_title }}{{else}}{{ title }}{{/if}}">
         <meta property="og:description" content="{{ description }}">
         <meta property="og:image" content="https://programming.alux.network/social/alux-programming-{{ language }}.jpg">
         <meta name="twitter:card" content="summary_large_image">
@@ -41,13 +41,13 @@
         <meta name="description" content="{{ description }}">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
+        <meta name="application-name" content="{{ book_title }}">
+        <meta name="apple-mobile-web-app-title" content="{{ book_title }}">
 
-        {{#if favicon_svg}}
-        <link rel="icon" href="{{ resource "favicon.svg" }}">
-        {{/if}}
-        {{#if favicon_png}}
-        <link rel="shortcut icon" href="{{ resource "favicon.png" }}">
-        {{/if}}
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+        <link rel="shortcut icon" href="/favicon.ico">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
         <link rel="stylesheet" href="{{ resource "css/variables.css" }}">
         <link rel="stylesheet" href="{{ resource "css/general.css" }}">
         <link rel="stylesheet" href="{{ resource "css/chrome.css" }}">
