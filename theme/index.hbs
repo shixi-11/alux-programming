@@ -22,10 +22,15 @@
         <meta name="twitter:card" content="summary_large_image">
         <link rel="preload" href="/fonts/cormorant-garamond-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
         <script>
+            if (window.parent === window && !document.documentElement.hasAttribute('data-print') && new URL(location.href).searchParams.get('reader') !== 'native') {
+                document.documentElement.dataset.shellLoading = '';
+                setTimeout(function () { document.documentElement.removeAttribute('data-shell-loading'); }, 2000);
+            }
             try {
                 const reader = JSON.parse(localStorage.getItem('alux-reader')) || {};
                 document.documentElement.dataset.world = {{#if is_print}}'real'{{else}}reader.world || 'real'{{/if}};
                 document.documentElement.style.setProperty('--reader-scale', reader.scale || 1);
+                document.documentElement.dataset.reading = reader.mode === 'scroll' ? 'scroll' : 'pages';
             } catch (e) {
                 document.documentElement.dataset.world = 'real';
             }
@@ -121,10 +126,15 @@
 
         <!-- Set the theme before any content is loaded, prevents flash -->
         <script>
-            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            const default_theme = default_light_theme;
             let theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
-            if (theme === null || theme === undefined) { theme = default_theme; }
+            // Keep the approved daylight default and migrate old manual night preferences.
+            if (!theme) {
+                try { theme = localStorage.getItem('alux-reading-theme') === 'dark' || localStorage.getItem('alux-night') === 'true' ? 'coal' : 'light'; } catch(e) { theme = 'light'; }
+            }
+            theme = ['coal', 'navy', 'ayu'].includes(theme) ? 'coal' : 'light';
+            try { localStorage.setItem('mdbook-theme', theme); } catch(e) { }
             const html = document.documentElement;
             html.classList.remove('{{ default_theme }}')
             html.classList.add(theme);
@@ -162,11 +172,23 @@
                 <span data-i18n>My bookmarks</span>
                 <span id="bookmark-count" class="bookmark-count">0</span>
             </button>
+            {{#if search_enabled}}
+            <button id="sidebar-search" class="sidebar-search" type="button" aria-controls="searchbar">
+                <i class="fa fa-search" aria-hidden="true"></i>
+                <span data-i18n>Search the book</span><kbd>Ctrl K</kbd>
+            </button>
+            {{/if}}
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
                 <iframe class="sidebar-iframe-outer" src="{{ path_to_root }}toc.html"></iframe>
             </noscript>
+            {{#if git_repository_url}}
+            <a class="sidebar-repository" href="{{git_repository_url}}" aria-label="GitHub">
+                <i class="fa {{git_repository_icon}}" aria-hidden="true"></i>
+                <span>GitHub</span><span class="repository-arrow" aria-hidden="true">↗</span>
+            </a>
+            {{/if}}
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
             </div>
@@ -203,29 +225,25 @@
                 <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle table of contents" aria-label="Toggle table of contents" data-i18n aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Show table of contents" aria-label="Show table of contents" data-i18n aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
                         </label>
                         <!-- The popup is positioned from this wrapper, so it opens under its toggle wherever the toolbar puts it. -->
                         <div class="theme-menu">
-                        <button id="theme-toggle" class="icon-button" type="button" title="Change reading theme" aria-label="Change reading theme" data-i18n aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change reading theme" aria-label="Change reading theme" data-i18n>
                             <i class="fa fa-moon-o"></i>
                         </button>
-                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        <ul id="theme-list" class="theme-popup" aria-hidden="true" inert>
+                            <li><button class="theme" id="light" tabindex="-1">Light</button></li>
+                            <li><button class="theme" id="coal" tabindex="-1">Dark</button></li>
                         </ul>
                         </div>
                         {{#if search_enabled}}
-                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                        <button id="search-toggle" class="icon-button toolbar-search" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
                         {{/if}}
-                        <button id="music-toggle" class="icon-button" type="button" title="Play music" aria-label="Play music" aria-pressed="false" data-i18n>
+                        <button id="music-toggle" data-reader-music class="icon-button" type="button" title="Play music" aria-label="Play music" aria-pressed="false" data-i18n>
                             <i class="fa fa-music"></i>
                         </button>
                         <button id="bookmark-toggle" class="bookmark-button" type="button" aria-pressed="false">
@@ -233,6 +251,9 @@
                         </button>
                         <button id="text-smaller" class="icon-button text-size" type="button" title="Decrease text size" aria-label="Decrease text size" data-i18n>A−</button>
                         <button id="text-larger" class="icon-button text-size" type="button" title="Increase text size" aria-label="Increase text size" data-i18n>A+</button>
+                        <button id="reading-mode" class="icon-button reading-mode" type="button" title="Scroll reading" aria-label="Scroll reading" aria-pressed="false" data-i18n>
+                            <i id="reading-mode-icon" class="fa fa-file-text-o" aria-hidden="true"></i><span id="reading-mode-label" data-i18n>Scroll reading</span>
+                        </button>
                     </div>
 
                     <span class="menu-title"></span>
@@ -241,11 +262,6 @@
                         <button id="world-toggle" class="world-link" type="button">
                             <span id="world-toggle-label" data-i18n>Magic world</span> <span aria-hidden="true">↗</span>
                         </button>
-                        {{#if git_repository_url}}
-                        <a href="{{git_repository_url}}" title="Git repository" aria-label="Git repository">
-                            <i id="git-repository-button" class="fa {{git_repository_icon}}"></i>
-                        </a>
-                        {{/if}}
                         <!-- Styled like the theme menu; reader.ts fills it with links to this page in every edition. -->
                         <div class="theme-menu language-menu">
                             <button id="language-toggle" class="icon-button" type="button" title="Language" aria-label="Language" data-i18n aria-haspopup="true" aria-expanded="false" aria-controls="language-list">
@@ -255,24 +271,6 @@
                         </div>
                     </div>
                 </div>
-
-                {{#if search_enabled}}
-                <div id="search-wrapper" class="hidden">
-                    <form id="searchbar-outer" class="searchbar-outer">
-                        <div class="search-wrapper">
-                            <input type="search" id="searchbar" name="searchbar" placeholder="Search the book" data-i18n aria-controls="searchresults-outer" aria-describedby="searchresults-header">
-                            <div class="spinner-wrapper">
-                                <i class="fa fa-spinner fa-spin"></i>
-                            </div>
-                        </div>
-                    </form>
-                    <div id="searchresults-outer" class="searchresults-outer hidden">
-                        <div id="searchresults-header" class="searchresults-header"></div>
-                        <ul id="searchresults">
-                        </ul>
-                    </div>
-                </div>
-                {{/if}}
 
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script>
@@ -285,8 +283,9 @@
 
                 <div id="content" class="content">
                     <div class="volume">
-                        <div class="page-head" aria-hidden="true"><span class="running-part"></span><span class="running-book" data-i18n>ALUX Programming</span></div>
-                        <div class="page-head" aria-hidden="true"><span class="running-part"></span><span class="running-book" data-i18n>ALUX Programming</span></div>
+                        <span class="book-corners" aria-hidden="true"></span>
+                        <div class="page-head" aria-hidden="true"><span class="running-part"></span></div>
+                        <div class="page-head" aria-hidden="true"><span class="running-part"></span></div>
                         <main class="leaves">
                             {{{ content }}}
                         </main>
@@ -298,7 +297,6 @@
                             <i class="fa fa-long-arrow-left" aria-hidden="true"></i> <span id="page-prev-label" data-i18n>Previous page</span>
                         </button>
                         <span class="folio-center">
-                            <span class="folio-book" data-i18n>ALUX Programming</span>
                             <span id="folio" class="folio" aria-live="polite"></span>
                         </span>
                         <button id="page-next" class="page-turn" type="button">
@@ -340,6 +338,25 @@
             </nav>
 
         </div>
+
+        {{#if search_enabled}}
+        <!-- Viewport overlay: the native mobile drawer transforms .page-wrapper. -->
+        <div id="search-wrapper" class="hidden">
+            <form id="searchbar-outer" class="searchbar-outer">
+                <div class="search-wrapper">
+                    <input type="search" id="searchbar" name="searchbar" placeholder="Search the book" data-i18n aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    <div class="spinner-wrapper">
+                        <i class="fa fa-spinner fa-spin"></i>
+                    </div>
+                </div>
+            </form>
+            <div id="searchresults-outer" class="searchresults-outer hidden">
+                <div id="searchresults-header" class="searchresults-header"></div>
+                <ul id="searchresults">
+                </ul>
+            </div>
+        </div>
+        {{/if}}
 
         <dialog id="bookmarks" class="bookmarks" aria-labelledby="bookmarks-title">
             <header class="bookmarks-head">
@@ -424,7 +441,12 @@
         {{#each additional_js}}
         <script src="{{ resource this}}"></script>
         {{/each}}
+        <script type="module" src="/native-ready.js"></script>
         <!-- ALUX reader, bundled by Vite from web/reader.ts -->
+        <section id="music-notice" data-reader-music class="music-notice" hidden aria-live="polite">
+            <div class="music-notice-heading"><p id="music-notice-hint"></p><button id="music-notice-close" type="button">×</button></div>
+            <label class="music-volume"><span id="music-volume-label"></span><input id="music-volume" type="range" min="0" max="1" step="0.01"><output id="music-volume-value"></output></label>
+        </section>
         <script type="module" src="/reader.js"></script>
         {{#if search_js}}
         <!-- Keep initial URL searches behind the reader's CJK matching extension. -->

@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('reader-pr-{0}', github.event.pull_request.number) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   publish:
@@ -45,6 +45,15 @@ jobs:
         mdbook-admonish --version
         mdbook-katex --version
         mdbook-linkcheck --version
+
+    - name: Prepare headless audio
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pulseaudio pulseaudio-utils
+        pulseaudio --start --exit-idle-time=-1
+        pactl load-module module-null-sink sink_name=reader_test
+        pactl set-default-sink reader_test
+        pactl info
 
     - name: 🔨 Build
       run: |

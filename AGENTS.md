@@ -4,7 +4,7 @@ This file is the compact engineering authority for humans and coding agents work
 
 ## Product
 
-The ALUX programming guidelines: one mdBook, published in 11 languages, with a reader that adds a magic world (a paged two-column book) and a real world (the plain mdBook page), a gateway to choose between them, text size, bookmarks and reading music.
+The ALUX programming guidelines: one mdBook, published in 11 languages, with a reader that adds a magic world (a facing-page book or continuous reading) and a real world (the plain mdBook page), a gateway to choose between them, text size, bookmarks and reading music.
 
 mdBook defines the book. Application configuration defines additional pages. Everything else is a derivation of those two, verification included. Do not turn this repository into a web application, a static-site generator or a second book model beside mdBook.
 
@@ -18,7 +18,7 @@ Meaning:
 Book    = mdBook's book: ordered parts and chapters (path, name, content)
 Edition = Language -> Book          (localize: swap content and names, keep paths)
 Site    = Edition per language, rendered to pages at /<lang>/<path>.html
-Reader  = World -> view of a page   (magic: spreads of columns, real: the page)
+Reader  = World x ReadingMode -> view of a page (magic: spreads or continuous, real: the page)
 ```
 
 The primitives are `SUMMARY.md` with the English chapters, `languages.ts`, and the translations. Everything else is an interpretation of them:
@@ -49,6 +49,17 @@ identify the meaning -> find its single source -> derive the rest from it -> add
 ```
 
 not a bigger script, a second list, a post-processing pass over HTML, or an explanation in prose only.
+
+## Approved reader experience
+
+Preserve the reader's product intent through architecture changes:
+
+- Worlds and modes: magic offers facing pages on wide screens, one leaf on narrow screens and continuous reading; real offers the native document. Both retain chapter progress, text size, bookmarks and search.
+- Themes and typography: magic pairs ivory daylight with muted forest-green night paper and brass details; real pairs light neutral daylight with charcoal night. Prose, contents, bookmarks and search share the edition's reading scale.
+- Turns: paper folds visibly while the cover, binding, gutter and ribbon stay fixed. Text, selection, links, controls and media keep their native actions. Reduced motion reveals the destination directly.
+- Music: one shared reading track continues across chapters, with direct play/pause and volume controls. Magic entry enables it; real entry starts it off. Welcome narration belongs to the visible entrance.
+- Entrance and identity: balanced world choices, localized welcome, country/browser-language fallback and a remembered manual edition. The logo returns to the entrance; page identity comes from each edition's `readerName`.
+- Content: mdBook's canonical chapters, native fallback, history and anchors remain usable. Pagination describes only the current chapter, with local scrolling for code, tables and math.
 
 ## Layout
 
@@ -105,7 +116,7 @@ npm run build   # every edition into book/html
 npm test        # needs a build; site, translation and determinism tests
 ```
 
-CI runs `npm ci`, `npm run check`, `npm run build`, `npm test`, in that order. Run them before finishing. Run one build at a time: stop `npm start` before `npm run build`, they write the same directory. Run `npm test` after `npm run build`, not after a dev rebuild: in dev, Vite serves `/reader.js` and `public/` itself, so `book/html` lacks them and the site test reports broken links. mdBook and its preprocessors (mdbook-admonish, mdbook-katex, mdbook-linkcheck) must be on `PATH`.
+CI runs `npm ci`, `npm run check`, `npm run build`, `npm test`, in that order. Run them before finishing. Headless Linux audio tests need a running PulseAudio server with a virtual output sink, as provisioned in CI; retain decoder and playback assertions. Run one build at a time: stop `npm start` before `npm run build`, they write the same directory. Run `npm test` after `npm run build`, not after a dev rebuild: in dev, Vite serves `/reader.js` and `public/` itself, so `book/html` lacks them and the site test reports broken links. mdBook and its preprocessors (mdbook-admonish, mdbook-katex, mdbook-linkcheck) must be on `PATH`.
 
 ## Rules
 
@@ -115,7 +126,7 @@ CI runs `npm ci`, `npm run check`, `npm run build`, `npm test`, in that order. R
 - Static files go in `public/` and are linked root-absolute (`/concepts.png`). Nothing static lives in `src/`. The HTML-only asset preprocessor runs after native admonish and katex, using parser source positions to change actual image destinations. Do not rewrite Markdown with line/fence heuristics or serialize whole chapters; preserve literal code, image labels, titles and shared link definitions.
 - TypeScript only, ESM, imports with `.ts` extensions. No Python, no shell scripts in the build.
 - No frameworks in the reader. It is one module binding the template's markup by element id.
-- The magic world is always a paged book: no scroll reading mode in it. Continuous scrolling is the real world.
+- The magic world defaults to a paged book and also offers a persistent continuous-reading toggle. Both presentations keep the same mdBook chapter. The outer book remains vertically scrollable; never shrink its height to force it into the viewport.
 - The magic world's sidebar has a fixed width: no resize handle there. The real world keeps mdBook's resizable sidebar.
 - Builds are deterministic and atomic: the same sources give byte-identical output, and a failed build leaves the previous site untouched. Once the replacement succeeds, backup cleanup is best effort: report any retained backup without treating publication as failed or suppressing the dev reload.
 

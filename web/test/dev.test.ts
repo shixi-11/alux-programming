@@ -23,6 +23,7 @@ test('dev startup waits for the book and watched edits reload despite failed bac
     const chapter = path.join(fixture, 'src/index.md');
     await writeFile(chapter, '# Fixture\n\nInitial fixture content.\n');
     await writeFile(path.join(fixture, 'web/reader.ts'), 'export {};');
+    await writeFile(path.join(fixture, 'web/native-ready.ts'), 'export {};');
     process.chdir(fixture);
     server = await createServer({
       configFile: path.join(project, 'vite.config.ts'),
@@ -69,6 +70,6 @@ test('dev startup waits for the book and watched edits reload despite failed bac
   } finally {
     await server?.close();
     process.chdir(project);
-    await rm(fixture, { recursive: true, force: true });
+    await rm(fixture, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });

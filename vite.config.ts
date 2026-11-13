@@ -10,6 +10,7 @@ import { buildBook, replaceDirectory } from './web/mdbook.ts';
 
 const out = resolve('book/html');
 const reader = resolve('web/reader.ts');
+const nativeReady = resolve('web/native-ready.ts');
 const pageFlipPackage = createRequire(import.meta.url).resolve('page-flip/package.json');
 const pageFlipLicense = '/*! StPageFlip\n' + await readFile(join(dirname(pageFlipPackage), 'LICENSE'), 'utf8') + '\n*/';
 const bookSources = ['src', 'theme', 'book.toml', 'web/localize.ts', 'web/public-assets.ts', 'web/mdbook-assets.ts', 'web/mdbook.ts'].map((path) => normalizePath(resolve(path)));
@@ -78,6 +79,7 @@ function mdbook(): Plugin {
     // The pages load /reader.js; in dev that is the TypeScript source.
     resolveId(id) {
       if (id === '/reader.js') return reader;
+      if (id === '/native-ready.js') return nativeReady;
     },
     // `vite` (npm start): build the book now and again whenever a book source changes.
     async configureServer(server) {
@@ -103,8 +105,8 @@ export default defineConfig(({ command }) => ({
     outDir: out,
     emptyOutDir: false,
     rollupOptions: {
-      input: reader,
-      output: { entryFileNames: 'reader.js', banner: pageFlipLicense },
+      input: { reader, 'native-ready': nativeReady },
+      output: { entryFileNames: '[name].js', banner: pageFlipLicense },
     },
   },
   plugins: [mdbook()],
